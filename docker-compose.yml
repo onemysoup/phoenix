@@ -1,0 +1,22 @@
+services:
+  phoenix-mcp:
+    build:
+      context: .
+    image: phoenix-mcp:local
+    init: true
+    stdin_open: true
+    tty: true
+    read_only: true
+    environment:
+      PHOENIX_STATE_DIR: /tmp/phoenix-state
+      # Set only when local/private test targets are intentionally needed.
+      # PHOENIX_ALLOW_PRIVATE_NETWORK: "true"
+    tmpfs:
+      - /tmp:mode=1777,size=512m
+      - /home/phoenix:mode=0700,size=128m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    restart: "no"

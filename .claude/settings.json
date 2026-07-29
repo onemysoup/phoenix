@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsx *)",
+      "Bash(npm run *)",
+      "Bash(npm whoami *)",
+      "Bash(npm view *)",
+      "Bash(npm publish *)",
+      "Bash(gh auth *)"
+    ]
+  }
+}

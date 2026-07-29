@@ -1,0 +1,16 @@
+.git
+.github
+.idea
+.vscode
+.phoenix
+node_modules
+dist
+test
+test-results
+playwright-report
+.env
+.DS_Store
+npm-debug.log*
+README.md
+README_zh.md
+CLAUDE.md

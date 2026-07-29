@@ -1,0 +1,65 @@
+{
+  "name": "phoenix-mcp",
+  "version": "1.0.0",
+  "description": "Self-healing browser automation MCP server — auto-fixes broken selectors with semantic + visual matching",
+  "main": "dist/index.js",
+  "bin": {
+    "phoenix-mcp": "dist/index.js"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch",
+    "check": "tsc --noEmit",
+    "test": "npm run build && npm run test:security && npm run test:llm-provider && npm run test:repair-cache && npm run test:quality && npm run test:pool && npm run test:phase2 && npm run test:phase3 && npm run test:phase4",
+    "test:security": "tsx test/security-test.ts",
+    "test:llm-provider": "tsx test/llm-provider-test.ts",
+    "test:repair-cache": "tsx test/repair-cache-test.ts",
+    "test:quality": "tsx test/quality-regression-test.ts",
+    "test:pool": "tsx test/pool-test.ts",
+    "test:phase2": "PHOENIX_ALLOW_PRIVATE_NETWORK=true tsx test/phase2-test.ts",
+    "test:phase3": "PHOENIX_ALLOW_PRIVATE_NETWORK=true tsx test/phase3-test.ts",
+    "test:llm": "tsx test/llm-integration-test.ts",
+    "test:phase4": "PHOENIX_ALLOW_PRIVATE_NETWORK=true tsx test/phase4-test.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "mcp",
+    "browser-automation",
+    "playwright",
+    "self-healing",
+    "ai-agent",
+    "llm",
+    "css-selector",
+    "web-scraping",
+    "model-context-protocol"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nicepkg/phoenix.git"
+  },
+  "homepage": "https://github.com/nicepkg/phoenix#readme",
+  "bugs": {
+    "url": "https://github.com/nicepkg/phoenix/issues"
+  },
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "playwright": "1.61.0-alpha-1778188671000",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.23.1",
+    "typescript": "^5.5.0"
+  }
+}
