@@ -1,8 +1,17 @@
 # syntax=docker/dockerfile:1
-# A single runtime stage keeps the Playwright browser and its OS dependencies in
-# the same image as the MCP server. Build with a pinned lockfile using:
-#   docker build -t phoenix-mcp:local .
-FROM node:20-bookworm-slim
+# Build TypeScript with dev dependencies, then ship only runtime dependencies
+# and Playwright's browser in the final image.
+FROM node:20-bookworm-slim AS builder
+
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --include=dev
+
+COPY tsconfig.json ./
+COPY src ./src
+RUN npm run build
+
+FROM node:20-bookworm-slim AS runtime
 
 ENV NODE_ENV=production \
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
@@ -10,19 +19,16 @@ ENV NODE_ENV=production \
 
 WORKDIR /app
 
-# Install exactly the JavaScript dependency graph recorded in package-lock.json.
+# Install only production dependencies in the final image, including Playwright.
 COPY package.json package-lock.json ./
-RUN npm ci
-
-COPY tsconfig.json ./
-COPY src ./src
-RUN npm run build \
+RUN npm ci --omit=dev \
     && npx playwright install --with-deps chromium \
-    && npm prune --omit=dev \
     && groupadd --system phoenix \
     && useradd --system --gid phoenix --create-home phoenix \
     && mkdir -p /tmp/phoenix-state /ms-playwright \
     && chown -R phoenix:phoenix /app /tmp/phoenix-state /ms-playwright
+
+COPY --from=builder /app/dist ./dist
 
 USER phoenix
 
