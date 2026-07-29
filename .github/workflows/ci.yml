@@ -28,3 +28,5 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run check
       - run: npm test
+      - run: docker compose config --quiet
+      - run: docker build --tag phoenix-mcp:ci .
