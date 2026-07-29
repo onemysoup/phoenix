@@ -109,6 +109,11 @@ async function main() {
   assert(typeof stats1.avgLatencyMs === "number", "avgLatencyMs is a number");
   assert(stats1.uptime >= 0, `uptime >= 0 (got ${stats1.uptime})`);
 
+  const prometheus = await callTool(client, "metrics_prometheus", {});
+  const prometheusText = typeof prometheus === "string" ? prometheus : prometheus.error;
+  assert(typeof prometheusText === "string" && prometheusText.includes("phoenix_browser_active_sessions"), "Prometheus metrics expose browser gauges");
+  assert(prometheusText.includes("phoenix_llm_requests_total"), "Prometheus metrics expose LLM resilience counters");
+
   // =========================================
   // Test 3: Concurrent sessions (up to pool limit)
   // =========================================

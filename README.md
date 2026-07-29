@@ -61,6 +61,12 @@ cost and needs local credentials.
 verifies the `/chat/completions` path, Bearer authentication, request payload,
 and non-2xx error propagation without using a real key.
 
+LLM calls use bounded retries for transient network/429/5xx failures and a
+process-local circuit breaker. Configure `PHOENIX_LLM_MAX_RETRIES`,
+`PHOENIX_LLM_RETRY_BASE_MS`, `PHOENIX_LLM_CIRCUIT_FAILURE_THRESHOLD`, and
+`PHOENIX_LLM_CIRCUIT_RESET_MS` as needed. The `metrics_prometheus` MCP tool
+exports Prometheus-compatible browser, MCP, and LLM resilience metrics.
+
 ## MCP Tools
 
 | Tool | Description |

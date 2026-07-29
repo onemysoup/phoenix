@@ -57,6 +57,11 @@ export PHOENIX_LLM_TIMEOUT_MS=30000             # 可选，请求超时（毫秒
 默认 `npm test` 包含离线 OpenAI-compatible Provider 合约测试：无需真实密钥，覆盖
 `/chat/completions` 路径、Bearer 鉴权、请求负载及非 2xx 错误传递。
 
+LLM 调用会对网络错误、429 和 5xx 进行有界重试，并提供进程内熔断器。可通过
+`PHOENIX_LLM_MAX_RETRIES`、`PHOENIX_LLM_RETRY_BASE_MS`、
+`PHOENIX_LLM_CIRCUIT_FAILURE_THRESHOLD`、`PHOENIX_LLM_CIRCUIT_RESET_MS` 配置。
+`metrics_prometheus` MCP 工具可导出 Prometheus 兼容的浏览器、MCP 与 LLM 韧性指标。
+
 ### 状态目录
 
 修复缓存和按域名的权重会写入本地状态目录，默认是当前工作目录的 `.phoenix/`；可用 `PHOENIX_STATE_DIR` 覆盖。该状态不具备多租户隔离或跨进程协调能力；共享部署中请为租户分配独立目录或使用外部存储。

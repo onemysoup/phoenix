@@ -6,6 +6,7 @@ const originalEnv = {
   apiKey: process.env.LLM_API_KEY,
   baseUrl: process.env.LLM_BASE_URL,
   model: process.env.LLM_MODEL,
+  maxRetries: process.env.PHOENIX_LLM_MAX_RETRIES,
 };
 
 try {
@@ -13,6 +14,7 @@ try {
   process.env.LLM_API_KEY = "test-key";
   process.env.LLM_BASE_URL = "https://gateway.example/v1/";
   process.env.LLM_MODEL = "test-model";
+  process.env.PHOENIX_LLM_MAX_RETRIES = "1";
 
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   globalThis.fetch = async (url, init) => {
@@ -39,11 +41,16 @@ try {
     max_tokens: 128,
   });
 
-  globalThis.fetch = async () => new Response("provider unavailable", { status: 503 });
+  let failureCalls = 0;
+  globalThis.fetch = async () => {
+    failureCalls++;
+    return new Response("provider unavailable", { status: 503 });
+  };
   await assert.rejects(
     () => provider.chat([{ role: "user", content: "retry" }]),
     /LLM API error \(503\): provider unavailable/,
   );
+  assert.equal(failureCalls, 2, "retries 5xx once before returning the final provider error");
 
   console.log("OpenAI-compatible LLM provider contract tests passed");
 } finally {
@@ -52,4 +59,5 @@ try {
   process.env.LLM_API_KEY = originalEnv.apiKey;
   process.env.LLM_BASE_URL = originalEnv.baseUrl;
   process.env.LLM_MODEL = originalEnv.model;
+  process.env.PHOENIX_LLM_MAX_RETRIES = originalEnv.maxRetries;
 }

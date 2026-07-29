@@ -5,6 +5,8 @@ import { BrowserPool } from "../browser/pool.js";
 import { BrowserSession } from "../browser/context.js";
 import { SessionMutex } from "../browser/session-mutex.js";
 import { AuditLog } from "../observability/audit-log.js";
+import { llmMetrics } from "../observability/llm-metrics.js";
+import { renderPrometheusMetrics } from "../observability/prometheus.js";
 // Built-in tools
 import { handleNavigate, navigateSchema } from "./tools/navigate.js";
 import { handleClick, clickSchema } from "./tools/click.js";
@@ -100,6 +102,7 @@ export function createMcpServer() {
             content: [{ type: "text", text: JSON.stringify({ sessionId, url: url ?? "about:blank" }) }],
         };
     });
+    server.tool("metrics_prometheus", "Return Prometheus-compatible runtime metrics for browser-pool, MCP operations, and LLM resilience.", {}, async () => ({ content: [{ type: "text", text: renderPrometheusMetrics(pool.getMetrics(), llmMetrics.snapshot()) }] }));
     server.tool("session_close", "Close a browser session and release resources.", { sessionId: sessionIdParam }, async ({ sessionId }) => {
         return mutex.run(sessionId, async () => {
             const session = sessions.get(sessionId);

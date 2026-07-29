@@ -10,6 +10,7 @@
  *   LLM_BASE_URL    — API base URL (for OpenAI-compatible endpoints)
  *   LLM_MODEL       — Model name (default: "gpt-4o")
  */
+import { llmMetrics } from "../observability/llm-metrics.js";
 
 export interface LLMMessage {
   role: "system" | "user" | "assistant";
@@ -26,19 +27,66 @@ export interface LLMProvider {
   chat(messages: LLMMessage[], options?: { temperature?: number; maxTokens?: number }): Promise<LLMResponse>;
 }
 
-const LLM_TIMEOUT_MS = Number(process.env.PHOENIX_LLM_TIMEOUT_MS ?? 30_000);
+let consecutiveFailures = 0;
+let circuitOpenUntil = 0;
+
+function configNumber(name: string, fallback: number, min = 0): number {
+  const value = Number(process.env[name] ?? fallback);
+  return Number.isFinite(value) && value >= min ? value : fallback;
+}
+
+function sleep(ms: number): Promise<void> { return new Promise((resolve) => setTimeout(resolve, ms)); }
 
 async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
-  try {
-    return await fetch(url, { ...init, signal: controller.signal });
-  } catch (error) {
-    if (controller.signal.aborted) throw new Error(`LLM request timed out after ${LLM_TIMEOUT_MS}ms`);
-    throw error;
-  } finally {
-    clearTimeout(timer);
+  const timeoutMs = configNumber("PHOENIX_LLM_TIMEOUT_MS", 30_000, 1);
+  const retries = Math.floor(configNumber("PHOENIX_LLM_MAX_RETRIES", 2));
+  const retryBaseMs = configNumber("PHOENIX_LLM_RETRY_BASE_MS", 250, 1);
+  const circuitThreshold = Math.floor(configNumber("PHOENIX_LLM_CIRCUIT_FAILURE_THRESHOLD", 5, 1));
+  const circuitResetMs = configNumber("PHOENIX_LLM_CIRCUIT_RESET_MS", 30_000, 1);
+  if (Date.now() < circuitOpenUntil) {
+    llmMetrics.setCircuitOpen(true);
+    throw new Error("LLM circuit is open; deterministic healing remains available.");
   }
+  llmMetrics.setCircuitOpen(false);
+  llmMetrics.request();
+  const startedAt = Date.now();
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, { ...init, signal: controller.signal });
+      const retryable = response.status === 429 || response.status >= 500;
+      if (!retryable || attempt === retries) {
+        const success = response.ok;
+        llmMetrics.complete(Date.now() - startedAt, success);
+        if (success) consecutiveFailures = 0;
+        else if (++consecutiveFailures >= circuitThreshold) {
+          circuitOpenUntil = Date.now() + circuitResetMs;
+          llmMetrics.setCircuitOpen(true);
+        }
+        return response;
+      }
+      if (response.status === 429) llmMetrics.rateLimit();
+      llmMetrics.retry();
+    } catch (error) {
+      lastError = error;
+      if (attempt === retries) {
+        llmMetrics.complete(Date.now() - startedAt, false);
+        if (++consecutiveFailures >= circuitThreshold) {
+          circuitOpenUntil = Date.now() + circuitResetMs;
+          llmMetrics.setCircuitOpen(true);
+        }
+        if (controller.signal.aborted) throw new Error(`LLM request timed out after ${timeoutMs}ms`);
+        throw error;
+      }
+      llmMetrics.retry();
+    } finally {
+      clearTimeout(timer);
+    }
+    await sleep(retryBaseMs * 2 ** attempt);
+  }
+  throw lastError instanceof Error ? lastError : new Error("LLM request failed");
 }
 
 // ========== OpenAI-compatible provider ==========
